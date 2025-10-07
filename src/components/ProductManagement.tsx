@@ -11,7 +11,6 @@ import { useProducts, useUpdateProduct } from '@/hooks/use-products';
 import { ProductFilters, Product } from '@/types/product';
 import { ProductForm } from '@/components/ProductForm';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ProductManagement = () => {
@@ -31,11 +30,10 @@ const ProductManagement = () => {
     document.title = 'Calvão de Cria | Gerenciamento';
   }, []);
 
+  const products = Array.isArray(productsResponse?.data) ? productsResponse.data : [];
+
   const handleFilterChange = (key: keyof ProductFilters, value: any) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value,
-    }));
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const handleSort = (sortBy: ProductFilters['sortBy']) => {
@@ -51,10 +49,11 @@ const ProductManagement = () => {
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(price);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+  };
+  
+  const handleEditSuccess = () => {
+    setEditingProduct(null);
   };
 
   return (
@@ -66,7 +65,6 @@ const ProductManagement = () => {
             <h1 className="text-3xl font-bold tracking-tight">Gerenciamento de Produtos</h1>
             <p className="text-muted-foreground">Gerencie o catálogo de produtos da sua loja</p>
           </div>
-
           <div className="flex items-center gap-4">
             <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
               <DialogTrigger asChild>
@@ -76,9 +74,7 @@ const ProductManagement = () => {
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <ProductForm
-                  onSuccess={() => setIsCreateModalOpen(false)}
-                />
+                <ProductForm onSuccess={() => setIsCreateModalOpen(false)} />
               </DialogContent>
             </Dialog>
             <Button variant="outline" size="icon" onClick={logout}>
@@ -102,12 +98,9 @@ const ProductManagement = () => {
                     className="pl-9"
                   />
                 </div>
-
                 <Select
                   value={filters.isActive === undefined ? 'all' : filters.isActive.toString()}
-                  onValueChange={(value) =>
-                    handleFilterChange('isActive', value === 'all' ? undefined : value === 'true')
-                  }
+                  onValueChange={(value) => handleFilterChange('isActive', value === 'all' ? undefined : value === 'true')}
                 >
                   <SelectTrigger className="w-40">
                     <SelectValue />
@@ -124,159 +117,113 @@ const ProductManagement = () => {
         </Card>
 
         {/* Products Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Produtos ({productsResponse?.data.length || 0})</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="border-b bg-muted/50">
-                  <tr>
-                    <th className="p-4 text-left">Imagem</th>
-                    <th className="p-4 text-left">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-2 font-semibold"
-                        onClick={() => handleSort('name')}
-                      >
-                        Nome
-                        <ArrowUpDown className="h-3 w-3" />
-                      </Button>
-                    </th>
-                    <th className="p-4 text-left">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-2 font-semibold"
-                        onClick={() => handleSort('price')}
-                      >
-                        Preço
-                        <ArrowUpDown className="h-3 w-3" />
-                      </Button>
-                    </th>
-                    <th className="p-4 text-left">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-2 font-semibold"
-                        onClick={() => handleSort('stockQuantity')}
-                      >
-                        Estoque
-                        <ArrowUpDown className="h-3 w-3" />
-                      </Button>
-                    </th>
-                    <th className="p-4 text-left">Status</th>
-                    <th className="p-4 text-left">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
+        <Dialog open={!!editingProduct} onOpenChange={(isOpen) => !isOpen && setEditingProduct(null)}>
+          <Card>
+            <CardHeader>
+              <CardTitle>Produtos ({products.length || 0})</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b bg-muted/50">
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                        Carregando produtos...
-                      </td>
+                      <th className="p-4 text-left">Imagem</th>
+                      <th className="p-4 text-left">
+                        <Button variant="ghost" size="sm" className="gap-2 font-semibold" onClick={() => handleSort('name')}>
+                          Nome <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </th>
+                      <th className="p-4 text-left">
+                        <Button variant="ghost" size="sm" className="gap-2 font-semibold" onClick={() => handleSort('price')}>
+                          Preço <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </th>
+                      <th className="p-4 text-left">
+                        <Button variant="ghost" size="sm" className="gap-2 font-semibold" onClick={() => handleSort('stockQuantity')}>
+                          Estoque <ArrowUpDown className="h-3 w-3" />
+                        </Button>
+                      </th>
+                      <th className="p-4 text-left">Status</th>
+                      <th className="p-4 text-left">Ações</th>
                     </tr>
-                  ) : productsResponse?.data.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                        Nenhum produto encontrado
-                      </td>
-                    </tr>
-                  ) : (
-                    productsResponse?.data.map((product) => (
-                      <tr key={product.id} className="border-b hover:bg-muted/25">
-                        <td className="p-4">
-                          {product.images?.[0] ? (
-                            <img
-                              src={product.images[0]}
-                              alt={product.name}
-                              className="h-12 w-12 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                              <Image className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <div>
-                            <p className="font-medium">{product.name}</p>
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {product.description}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div>
-                            {product.isPromotionActive && product.promotionalPrice ? (
-                              <div>
-                                <p className="font-medium text-success">
-                                  {formatPrice(product.promotionalPrice)}
-                                </p>
-                                <p className="text-sm text-muted-foreground line-through">
-                                  {formatPrice(product.price)}
-                                </p>
-                              </div>
+                  </thead>
+                  <tbody>
+                    {isLoading ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">Carregando produtos...</td>
+                      </tr>
+                    ) : products.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">Nenhum produto encontrado</td>
+                      </tr>
+                    ) : (
+                      products.map((product) => (
+                        <tr key={product.id} className="border-b hover:bg-muted/25">
+                          <td className="p-4">
+                            {/* CORREÇÃO AQUI */}
+                            {product.images && product.images.length > 0 ? (
+                              <img src={product.images[0].url} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
                             ) : (
-                              <p className="font-medium">{formatPrice(product.price)}</p>
+                              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
+                                <Image className="h-5 w-5 text-muted-foreground" />
+                              </div>
                             )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <span className={`font-medium ${
-                            product.stockQuantity > 20 ? 'text-success' :
-                            product.stockQuantity > 5 ? 'text-warning' : 'text-destructive'
-                          }`}>
-                            {product.stockQuantity}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant={product.isActive ? 'default' : 'secondary'}>
-                            {product.isActive ? 'Ativo' : 'Inativo'}
-                          </Badge>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            <Dialog>
+                          </td>
+                          <td className="p-4">
+                            <div>
+                              <p className="font-medium">{product.name}</p>
+                              <p className="text-sm text-muted-foreground line-clamp-1">{product.description}</p>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div>
+                              {product.isPromotionActive && product.promotionalPrice ? (
+                                <div>
+                                  <p className="font-medium text-success">{formatPrice(product.promotionalPrice)}</p>
+                                  <p className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</p>
+                                </div>
+                              ) : (
+                                <p className="font-medium">{formatPrice(product.price)}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className={`font-medium ${product.stockQuantity > 20 ? 'text-success' : product.stockQuantity > 5 ? 'text-warning' : 'text-destructive'}`}>
+                              {product.stockQuantity}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={product.isActive ? 'default' : 'secondary'}>{product.isActive ? 'Ativo' : 'Inativo'}</Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex gap-2">
                               <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setEditingProduct(product)}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => setEditingProduct(product)}>
                                   <Edit2 className="h-3 w-3" />
                                 </Button>
                               </DialogTrigger>
-                              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                                {editingProduct && (
-                                  <ProductForm
-                                    product={editingProduct}
-                                    onSuccess={() => setEditingProduct(null)}
-                                  />
-                                )}
-                              </DialogContent>
-                            </Dialog>
-
-                            <Button
-                              variant={product.isActive ? 'destructive' : 'default'}
-                              size="sm"
-                              onClick={() => handleToggleActive(product)}
-                              disabled={updateProductMutation.isPending}
-                            >
-                              <Power className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                              <Button
+                                variant={product.isActive ? 'destructive' : 'default'}
+                                size="sm"
+                                onClick={() => handleToggleActive(product)}
+                                disabled={updateProductMutation.isPending}
+                              >
+                                <Power className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            {editingProduct && (<ProductForm product={editingProduct} onSuccess={handleEditSuccess} />)}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

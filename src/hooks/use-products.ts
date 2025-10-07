@@ -1,26 +1,66 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Product, ProductsResponse, CreateProductData, UpdateProductData, ProductFilters } from '@/types/product';
-import { toast } from '@/hooks/use-toast';
+import { toast } from "sonner";
 import { useAuth } from '@/contexts/AuthContext';
 
 const API_BASE_URL = 'https://apicalvaodecria-production.up.railway.app/api/v1';
 
+// Função para fazer requisições autenticadas
 async function makeAuthenticatedRequest(endpoint: string, token: string | null, options: RequestInit = {}) {
   if (!token) {
     throw new Error('Não autenticado');
   }
 
+  const defaultHeaders: HeadersInit = {
+    'Authorization': `Bearer ${token}`,
+  };
+
+  if (!(options.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
+      ...defaultHeaders,
       ...options.headers,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
     },
   });
 
   return response;
 }
+
+// Função para fazer o upload de uma imagem para um produto
+async function uploadImageToProduct(token: string | null, productId: string, imageFile: File): Promise<void> {
+    const formData = new FormData();
+    formData.append('images', imageFile);
+
+    const response = await makeAuthenticatedRequest(`/admin/products/${productId}/images`, token, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Falha no upload da imagem.');
+    }
+}
+
+// Função para deletar uma imagem de um produto
+async function deleteProductImage(token: string | null, productId: string, imagePublicId: string): Promise<void> {
+    const response = await makeAuthenticatedRequest(`/admin/products/${productId}/images`, token, {
+        method: 'DELETE',
+        body: JSON.stringify({ publicId: imagePublicId })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Falha ao deletar a imagem.');
+    }
+}
+
 
 async function fetchProducts(token: string | null, filters: ProductFilters = {}): Promise<ProductsResponse> {
   const params = new URLSearchParams();
@@ -45,24 +85,13 @@ async function fetchProducts(token: string | null, filters: ProductFilters = {})
   const apiData = await response.json();
   const products = apiData.data?.products || apiData.products || apiData.data || [];
 
+  // CORREÇÃO CRUCIAL AQUI: Garante que 'productId' da API vire 'id' para a aplicação
   const transformedProducts = products.map((product: any) => {
-    let images = product.images || [];
-    if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'object' && images[0].url) {
-      images = images.map((img: any) => img.url);
-    }
-    return {
-      id: product.productId || product._id || product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      promotionalPrice: product.promotionalPrice,
-      isPromotionActive: product.isPromotionActive,
-      stockQuantity: product.stockQuantity,
-      images,
-      isActive: product.isActive,
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-    };
+      const { productId, _id, ...rest } = product;
+      return {
+          ...rest,
+          id: productId || _id || product.id,
+      };
   });
 
   return {
@@ -76,37 +105,54 @@ async function fetchProducts(token: string | null, filters: ProductFilters = {})
   };
 }
 
-async function createProduct(token: string | null, data: CreateProductData): Promise<Product> {
+async function createProduct(token: string | null, data: CreateProductData & { localImageFiles?: File[] }): Promise<Product> {
+  const { localImageFiles, ...productData } = data;
+
   const response = await makeAuthenticatedRequest('/admin/products', token, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(productData),
   });
 
   if (!response.ok) {
-    console.error('Error creating product:', response);
-    throw new Error('Erro ao criar produto');
+    const error = await response.json();
+    throw new Error(error.message || 'Erro ao criar produto');
   }
 
-  return response.json();
+  const newProduct = await response.json();
+  const newProductId = newProduct.data.productId;
+
+  if (localImageFiles && localImageFiles.length > 0) {
+    await Promise.all(
+      localImageFiles.map(file => uploadImageToProduct(token, newProductId, file))
+    );
+  }
+
+  return newProduct.data;
 }
 
-async function updateProduct(token: string | null, id: string, data: UpdateProductData): Promise<Product> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { images, ...dataWithoutImages } = data;
+async function updateProduct(token: string | null, id: string, data: UpdateProductData & { localImageFiles?: File[] }): Promise<Product> {
+    const { localImageFiles, images, ...productData } = data;
 
+    if (localImageFiles && localImageFiles.length > 0) {
+        await Promise.all(
+            localImageFiles.map(file => uploadImageToProduct(token, id, file))
+        );
+    }
+  
   const response = await makeAuthenticatedRequest(`/admin/products/${id}`, token, {
     method: 'PATCH',
-    body: JSON.stringify(dataWithoutImages),
+    body: JSON.stringify(productData),
   });
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    console.error('Error updating product:', errorBody);
-    throw new Error('Erro ao atualizar produto');
+    const errorBody = await response.json();
+    throw new Error(errorBody.message || 'Erro ao atualizar produto');
   }
 
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }
+
 
 export function useProducts(filters: ProductFilters = {}) {
   const { token } = useAuth();
@@ -122,19 +168,14 @@ export function useCreateProduct() {
   const { token } = useAuth();
 
   return useMutation({
-    mutationFn: (data: CreateProductData) => createProduct(token, data),
+    mutationFn: (data: CreateProductData & { localImageFiles?: File[] }) => createProduct(token, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: 'Produto criado',
-        description: 'Produto criado com sucesso!',
-      });
+      toast.success('Produto criado com sucesso!');
     },
-    onError: () => {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao criar produto. Tente novamente.',
-        variant: 'destructive',
+    onError: (error: Error) => {
+      toast.error('Erro ao criar produto', {
+        description: error.message || 'Por favor, tente novamente.',
       });
     },
   });
@@ -145,19 +186,32 @@ export function useUpdateProduct() {
   const { token } = useAuth();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateProductData }) => updateProduct(token, id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductData & { localImageFiles?: File[] } }) => updateProduct(token, id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: 'Produto atualizado',
-        description: 'Produto atualizado com sucesso!',
+      toast.success('Produto atualizado com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao atualizar produto', {
+        description: error.message || 'Por favor, tente novamente.',
       });
     },
-    onError: () => {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao atualizar produto. Tente novamente.',
-        variant: 'destructive',
+  });
+}
+
+export function useDeleteProductImage() {
+  const queryClient = useQueryClient();
+  const { token } = useAuth();
+
+  return useMutation({
+    mutationFn: ({ productId, imagePublicId }: { productId: string; imagePublicId: string }) => deleteProductImage(token, productId, imagePublicId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Imagem removida com sucesso!');
+    },
+    onError: (error: Error) => {
+      toast.error('Erro ao remover imagem', {
+        description: error.message || 'Por favor, tente novamente.',
       });
     },
   });

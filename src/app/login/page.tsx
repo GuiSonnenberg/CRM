@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,7 +50,7 @@ export default function Login() {
       }
 
       const result = await response.json();
-
+      
       const token = result.data?.tokens?.accessToken;
 
       if (!token) {
@@ -84,7 +85,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 {...register('email')}
-                placeholder="admin@admin.com"
+                placeholder="seu@email.com" // <-- Alterado aqui
                 autoComplete="email"
               />
               {errors.email && (
