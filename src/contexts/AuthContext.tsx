@@ -1,12 +1,6 @@
-import React,
-{
-  createContext,
-  useState,
-  useContext,
-  useEffect,
-  ReactNode,
-} from "react";
-import { useNavigate } from "react-router-dom";
+"use client";
+import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -18,10 +12,15 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("authToken")
-  );
-  const navigate = useNavigate();
+  const [token, setToken] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem("authToken");
+    if(storedToken) {
+      setToken(storedToken);
+    }
+  }, []);
 
   useEffect(() => {
     if (token) {
@@ -33,12 +32,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (newToken: string) => {
     setToken(newToken);
-    navigate("/");
+    router.push("/");
   };
 
   const logout = () => {
     setToken(null);
-    navigate("/login");
+    router.push("/login");
   };
 
   const authContextValue = {
