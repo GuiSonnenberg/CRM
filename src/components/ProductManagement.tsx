@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link'; // 1. Importado o Link
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, ArrowUpDown, Edit2, Power, Image, LogOut } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, Edit2, Power, Image, LogOut, Package } from 'lucide-react'; // 2. Adicionado o ícone Package
 import { useProducts, useUpdateProduct } from '@/hooks/use-products';
 import { ProductFilters, Product } from '@/types/product';
 import { ProductForm } from '@/components/ProductForm';
@@ -66,6 +67,14 @@ const ProductManagement = () => {
             <p className="text-muted-foreground">Gerencie o catálogo de produtos da sua loja</p>
           </div>
           <div className="flex items-center gap-4">
+            {/* 3. Botão para ver pedidos adicionado aqui */}
+            <Link href="/orders">
+              <Button variant="outline" className="gap-2">
+                <Package className="h-4 w-4" />
+                Ver Pedidos
+              </Button>
+            </Link>
+            
             <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -160,7 +169,6 @@ const ProductManagement = () => {
                       products.map((product) => (
                         <tr key={product.id} className="border-b hover:bg-muted/25">
                           <td className="p-4">
-                            {/* CORREÇÃO AQUI */}
                             {product.images && product.images.length > 0 ? (
                               <img src={product.images[0].url} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
                             ) : (
