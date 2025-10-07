@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 // File: C:\Users\guilh\OneDrive\Desktop\CRM\CRM\src\app\page.tsx
+=======
+// File: C:\Users\Henrique\Documents\crm\CRM\src\app\page.tsx
+>>>>>>> 2bce285244cb056e819060113758537b98ddf33d
 import * as entry from '../../../src/app/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
