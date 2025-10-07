@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Cookies from 'js-cookie'; // Importe a biblioteca
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -16,27 +17,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("authToken");
-    if(storedToken) {
+    // Leia o token do cookie quando o componente carregar
+    const storedToken = Cookies.get("authToken");
+    if (storedToken) {
       setToken(storedToken);
     }
   }, []);
 
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem("authToken", token);
-    } else {
-      localStorage.removeItem("authToken");
-    }
-  }, [token]);
-
   const login = (newToken: string) => {
     setToken(newToken);
+    // Salve o token no cookie. Ele expirará em 7 dias.
+    Cookies.set("authToken", newToken, { expires: 7 });
     router.push("/");
   };
 
   const logout = () => {
     setToken(null);
+    // Remova o token do cookie
+    Cookies.remove("authToken");
     router.push("/login");
   };
 

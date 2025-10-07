@@ -27,6 +27,8 @@ export interface CreateProductData {
   images?: ProductImage[]; // Deve usar a interface ProductImage
   isActive?: boolean;
   rating?: number;
+  promotionalPrice?: number;      
+  isPromotionActive?: boolean;
 }
 
 export interface UpdateProductData {

@@ -168,9 +168,16 @@ export function ProductForm({ product, onSuccess }: ProductFormProps) {
         });
       } else {
         await createMutation.mutateAsync({
-            ...data,
-            images: newImageUrl ? [{ url: newImageUrl, publicId: 'url' }] : [],
-            localImageFiles,
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          stockQuantity: data.stockQuantity,
+          isActive: data.isActive,
+          rating: data.rating,
+          promotionalPrice: data.promotionalPrice,
+          isPromotionActive: data.isPromotionActive,
+          images: newImageUrl ? [{ url: newImageUrl, publicId: 'url' }] : [],
+          localImageFiles,
         });
         reset();
         setNewImageUrl('');
