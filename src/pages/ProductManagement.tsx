@@ -1,19 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, ArrowUpDown, Edit2, Power, Image } from 'lucide-react';
+import { Plus, Search, ArrowUpDown, Edit2, Power, Image, LogOut } from 'lucide-react';
 import { useProducts, useUpdateProduct } from '@/hooks/use-products';
 import { ProductFilters, Product } from '@/types/product';
 import { ProductForm } from '@/components/ProductForm';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ProductManagement = () => {
   const [filters, setFilters] = useState<ProductFilters>({
-    limit: 1000, // Aumentamos o limite para buscar mais produtos
+    limit: 1000,
     sortBy: 'name',
     order: 'asc'
   });
@@ -22,9 +23,13 @@ const ProductManagement = () => {
 
   const { data: productsResponse, isLoading } = useProducts(filters);
   const updateProductMutation = useUpdateProduct();
+  const { logout } = useAuth();
+
+  useEffect(() => {
+    document.title = 'Calvão de Cria | Gerenciamento';
+  }, []);
 
   const handleFilterChange = (key: keyof ProductFilters, value: any) => {
-    // Lógica simplificada sem 'page'
     setFilters(prev => ({
       ...prev,
       [key]: value,
@@ -60,19 +65,25 @@ const ProductManagement = () => {
             <p className="text-muted-foreground">Gerencie o catálogo de produtos da sua loja</p>
           </div>
 
-          <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Criar Novo Produto
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <ProductForm
-                onSuccess={() => setIsCreateModalOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-4">
+            <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Criar Novo Produto
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <ProductForm
+                  onSuccess={() => setIsCreateModalOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" size="icon" onClick={logout}>
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Sair</span>
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -262,7 +273,6 @@ const ProductManagement = () => {
                 </tbody>
               </table>
             </div>
-            {/* Seção de Paginação foi removida */}
           </CardContent>
         </Card>
       </div>
